@@ -1,8 +1,7 @@
-# Copyright (c) 2023 Synopsys.
-#
-# SPDX-License-Identifier: Apache-2.0
-
-config SAMPLE_DO_OUTPUT
-	bool "Do print from the main thread which can be checked"
+config BT_NUS_THREAD_STACK_SIZE
+	int "Thread stack size"
+	default 1024
+	help
+	  Stack size used in each of the two threads
 
 source "Kconfig.zephyr"
