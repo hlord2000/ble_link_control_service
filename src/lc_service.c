@@ -1,7 +1,0 @@
-#define BT_UUID_LCS_VAL \
-	BT_UUID_128_ENCODE(0x430EBAD0, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
-
-#define BT_UUID_LCS_
-
-TODO:
-bt_conn_le_phy_update
