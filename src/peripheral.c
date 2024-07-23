@@ -54,7 +54,6 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	current_conn = bt_conn_ref(conn);
 	uint16_t conn_handle;
 	bt_hci_get_conn_handle(current_conn, &conn_handle);
-	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, tx_power);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -115,8 +114,6 @@ int main(void)
 	if (IS_ENABLED(CONFIG_SETTINGS)) {
 		settings_load();
 	}
-
-	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, NULL, tx_power);
 
 	err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd,
 			      ARRAY_SIZE(sd));

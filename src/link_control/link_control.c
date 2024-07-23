@@ -112,7 +112,9 @@ int set_tx_power(uint8_t handle_type, uint16_t handle, int8_t tx_pwr_lvl) {
 	}
 
 	cp = net_buf_add(buf, sizeof(*cp));
-	cp->handle = sys_cpu_to_le16(handle);
+	if (handle != 0) {
+		cp->handle = sys_cpu_to_le16(handle);
+	}
 	cp->handle_type = handle_type;
 	cp->tx_power_level = tx_pwr_lvl;
 

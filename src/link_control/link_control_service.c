@@ -11,7 +11,7 @@ LOG_MODULE_REGISTER(bt_lcs, LOG_LEVEL_DBG);
 #include "link_control.h"
 #include "link_control_service.h"
 
-static uint8_t tx_power_value = 0;
+static int8_t tx_power_value = 0;
 
 // Forward define the read and write functions
 static ssize_t read_tx_power(struct bt_conn *conn, const struct bt_gatt_attr *attr,
@@ -45,7 +45,9 @@ static ssize_t write_tx_power(struct bt_conn *conn, const struct bt_gatt_attr *a
 	uint16_t conn_handle;
 	bt_hci_get_conn_handle(conn, &conn_handle);
 	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, tx_power_value);
-	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, NULL, tx_power_value);
+	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, tx_power_value);
+
+	LOG_INF("Set tx power to %d", tx_power_value);
 
     return len;
 }

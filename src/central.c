@@ -1,4 +1,5 @@
 #include <zephyr/types.h>
+#include <stdlib.h>
 #include <stddef.h>
 #include <zephyr/kernel.h>
 #include <zephyr/bluetooth/bluetooth.h>
@@ -6,15 +7,28 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/hci_vs.h>
 #include <zephyr/sys/byteorder.h>
 #include <zephyr/settings/settings.h>
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(link_control_central);
+#include <zephyr/shell/shell.h>
+#include "link_control.h"
 #include "link_control_service.h"
 
+LOG_MODULE_REGISTER(link_control_central);
+
 static void start_scan(void);
+static struct bt_uuid_128 discover_uuid = BT_UUID_INIT_128(0);
 static struct bt_conn *default_conn;
+static uint16_t tx_power_handle;
 #define NAME_LEN 256
+
+struct link_control_handles {
+    uint16_t tx_power_handle;
+    // Add other characteristic handles as needed
+};
+
+static struct link_control_handles lc_handles;
 
 static bool data_cb(struct bt_data *data, void *user_data) {
     int err;
@@ -89,7 +103,6 @@ static void start_scan(void)
 
 static struct bt_gatt_discover_params discover_params;
 static struct bt_gatt_write_params write_params;
-static uint16_t tx_power_handle;
 
 static void write_func(struct bt_conn *conn, uint8_t err,
                        struct bt_gatt_write_params *params)
@@ -101,10 +114,9 @@ static void write_func(struct bt_conn *conn, uint8_t err,
     }
 }
 
-static void write_tx_power(struct bt_conn *conn)
+static void write_tx_power(struct bt_conn *conn, int8_t tx_power_value)
 {
     int err;
-    uint8_t tx_power_value = 4; // Example value, adjust as needed
 
     write_params.data = &tx_power_value;
     write_params.length = sizeof(tx_power_value);
@@ -132,9 +144,15 @@ static uint8_t discover_func(struct bt_conn *conn,
 
     LOG_INF("[ATTRIBUTE] handle %u", attr->handle);
 
-    if (!bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS)) {
+	char str[BT_UUID_STR_LEN];
+
+	bt_uuid_to_str(attr->uuid, str, sizeof(str));
+	LOG_INF("UUID: %s", str);
+
+    if (bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS) == 0) {
         // Service discovered, now discover characteristics
-        discover_params.uuid = BT_UUID_LCS_TX_PWR;
+		memcpy(&discover_uuid, BT_UUID_LCS_TX_PWR, sizeof(discover_uuid));
+		discover_params.uuid = &discover_uuid.uuid;
         discover_params.start_handle = attr->handle + 1;
         discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
 
@@ -142,7 +160,7 @@ static uint8_t discover_func(struct bt_conn *conn,
         if (err) {
             LOG_ERR("Discover failed (err %d)", err);
         }
-    } else if (!bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS_TX_PWR)) {
+    } else if (bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS_TX_PWR) == 0) {
         // TX Power characteristic found
         tx_power_handle = bt_gatt_attr_value_handle(attr);
         LOG_INF("TX Power characteristic handle: %u", tx_power_handle);
@@ -169,16 +187,17 @@ static void connected(struct bt_conn *conn, uint8_t err)
     }
 
     LOG_INF("Connected: %s", addr);
-	discover_params.uuid = BT_UUID_LCS;
-	discover_params.func = discover_func;
-	discover_params.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
-	discover_params.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
-	discover_params.type = BT_GATT_DISCOVER_PRIMARY;
+	memcpy(&discover_uuid, BT_UUID_LCS, sizeof(discover_uuid));
+	discover_params.uuid = &discover_uuid.uuid;
+    discover_params.func = discover_func;
+    discover_params.start_handle = BT_ATT_FIRST_ATTRIBUTE_HANDLE;
+    discover_params.end_handle = BT_ATT_LAST_ATTRIBUTE_HANDLE;
+    discover_params.type = BT_GATT_DISCOVER_PRIMARY;
 
-	err = bt_gatt_discover(conn, &discover_params);
-	if (err) {
-		LOG_ERR("Discover failed(err %d)", err);
-	}
+    err = bt_gatt_discover(conn, &discover_params);
+    if (err) {
+        LOG_ERR("Discover failed(err %d)", err);
+    }
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -199,21 +218,105 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 }
 
 static void le_phy_updated(struct bt_conn *conn,
-			   struct bt_conn_le_phy_info *param)
+               struct bt_conn_le_phy_info *param)
 {
-	char addr[BT_ADDR_LE_STR_LEN];
+    char addr[BT_ADDR_LE_STR_LEN];
 
-	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+    bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	LOG_INF("LE PHY Updated: %s Tx 0x%x, Rx 0x%x", addr, param->tx_phy,
-	       param->rx_phy);
+    LOG_INF("LE PHY Updated: %s Tx 0x%x, Rx 0x%x", addr, param->tx_phy,
+           param->rx_phy);
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
     .connected = connected,
     .disconnected = disconnected,
-	.le_phy_updated = le_phy_updated,
+    .le_phy_updated = le_phy_updated,
 };
+
+static int cmd_set_peripheral_tx(const struct shell *shell, size_t argc, char **argv)
+{
+    int8_t tx_power;
+    if (argc != 2) {
+        shell_error(shell, "Usage: set_peripheral_tx <power_level>");
+        return -EINVAL;
+    }
+    tx_power = (int8_t)atoi(argv[1]);
+    if (!default_conn) {
+        shell_error(shell, "No active connection");
+        return -ENOEXEC;
+    }
+    write_tx_power(default_conn, tx_power);
+    return 0;
+}
+
+static int cmd_set_central_tx(const struct shell *shell, size_t argc, char **argv)
+{
+    int8_t tx_power;
+    int err;
+    uint16_t conn_handle;
+    if (argc != 2) {
+        shell_error(shell, "Usage: set_central_tx <power_level>");
+        return -EINVAL;
+    }
+    tx_power = (int8_t)atoi(argv[1]);
+    if (!default_conn) {
+        shell_error(shell, "No active connection");
+        return -ENOEXEC;
+    }
+    err = bt_hci_get_conn_handle(default_conn, &conn_handle);
+    if (err) {
+        shell_error(shell, "Failed to get connection handle (err %d)", err);
+        return err;
+    }
+    err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, tx_power);
+    if (err) {
+        shell_error(shell, "Failed to set central TX power (err %d)", err);
+        return err;
+    }
+    shell_print(shell, "Central TX power set to %d", tx_power);
+    return 0;
+}
+
+static int cmd_set_phy(const struct shell *shell, size_t argc, char **argv)
+{
+    int err;
+    uint8_t phy;
+    if (argc != 2) {
+        shell_error(shell, "Usage: set_phy <1m|2m|coded>");
+        return -EINVAL;
+    }
+    if (!default_conn) {
+        shell_error(shell, "No active connection");
+        return -ENOEXEC;
+    }
+    if (strcmp(argv[1], "1m") == 0) {
+        phy = BT_GAP_LE_PHY_1M;
+    } else if (strcmp(argv[1], "2m") == 0) {
+        phy = BT_GAP_LE_PHY_2M;
+    } else if (strcmp(argv[1], "coded") == 0) {
+        phy = BT_GAP_LE_PHY_CODED;
+    } else {
+        shell_error(shell, "Invalid PHY option. Use 1m, 2m, or coded.");
+        return -EINVAL;
+    }
+    err = update_phy(default_conn, phy);
+    if (err) {
+        shell_error(shell, "Failed to update PHY (err %d)", err);
+        return err;
+    }
+    shell_print(shell, "PHY update initiated to %s", argv[1]);
+    return 0;
+}
+
+SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
+    SHELL_CMD(set_peripheral_tx, NULL, "Set peripheral TX power", cmd_set_peripheral_tx),
+    SHELL_CMD(set_central_tx, NULL, "Set central TX power", cmd_set_central_tx),
+    SHELL_CMD(set_phy, NULL, "Set PHY (1m, 2m, or coded)", cmd_set_phy),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_CMD_REGISTER(link_control, &link_control_cmds, "Link Control commands", NULL);
 
 int main(void)
 {
