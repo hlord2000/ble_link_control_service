@@ -17,6 +17,17 @@
 
 LOG_MODULE_REGISTER(link_control_central);
 
+#define RSSI_LOG_RATE_MS 500
+
+struct rssi_reading {
+	int8_t rssi;
+	uint32_t timestamp;
+};
+
+struct rssi_reading rssi_buf[1024];
+
+K_MUTEX_DEFINE(lcs_conn_mutex);
+
 static void start_scan(void);
 static struct bt_uuid_128 discover_uuid = BT_UUID_INIT_128(0);
 static struct bt_conn *default_conn;
@@ -79,8 +90,11 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
             return;
         }
 
+
+
         err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
-                    BT_LE_CONN_PARAM_DEFAULT, &default_conn);
+                    BT_LE_CONN_PARAM(400, 600, 0, 1500), 
+					&default_conn);
         if (err < 0) {
             LOG_ERR("Create conn to %s failed (%d)", addr_str, err);
             start_scan();
@@ -186,6 +200,18 @@ static void connected(struct bt_conn *conn, uint8_t err)
         return;
     }
 
+	uint16_t conn_handle;
+
+    err = bt_hci_get_conn_handle(default_conn, &conn_handle);
+    if (err) {
+		LOG_ERR("Failed to get connection handle (err %d)", err);
+    }
+
+    err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, 20);
+    if (err) {
+		LOG_ERR("Failed to set central connection TX power (err %d)", err);
+    }
+
     LOG_INF("Connected: %s", addr);
 	memcpy(&discover_uuid, BT_UUID_LCS, sizeof(discover_uuid));
 	discover_params.uuid = &discover_uuid.uuid;
@@ -198,6 +224,8 @@ static void connected(struct bt_conn *conn, uint8_t err)
     if (err) {
         LOG_ERR("Discover failed(err %d)", err);
     }
+
+
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -244,7 +272,6 @@ static int cmd_set_peripheral_tx(const struct shell *shell, size_t argc, char **
     tx_power = (int8_t)atoi(argv[1]);
     if (!default_conn) {
         shell_error(shell, "No active connection");
-        return -ENOEXEC;
     }
     write_tx_power(default_conn, tx_power);
     return 0;
@@ -262,17 +289,20 @@ static int cmd_set_central_tx(const struct shell *shell, size_t argc, char **arg
     tx_power = (int8_t)atoi(argv[1]);
     if (!default_conn) {
         shell_error(shell, "No active connection");
-        return -ENOEXEC;
     }
     err = bt_hci_get_conn_handle(default_conn, &conn_handle);
     if (err) {
         shell_error(shell, "Failed to get connection handle (err %d)", err);
-        return err;
     }
+
     err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, tx_power);
     if (err) {
-        shell_error(shell, "Failed to set central TX power (err %d)", err);
-        return err;
+        shell_error(shell, "Failed to set central connection TX power (err %d)", err);
+    }
+
+    err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_SCAN, 0, tx_power);
+    if (err) {
+        shell_error(shell, "Failed to set central scan TX power (err %d)", err);
     }
     shell_print(shell, "Central TX power set to %d", tx_power);
     return 0;
@@ -309,10 +339,44 @@ static int cmd_set_phy(const struct shell *shell, size_t argc, char **argv)
     return 0;
 }
 
+static int cmd_print_rssi_buf(const struct shell *shell, size_t argc, char **argv)
+{
+	for (int i = 0; i < 1024; i++) {
+		if (rssi_buf[i].timestamp == 0) {
+			break;
+		}
+		shell_print(shell, "RSSI: %d, Timestamp: %u", rssi_buf[i].rssi, rssi_buf[i].timestamp);
+	}
+	return 0;
+}
+
+uint32_t delay_ms;
+static int cmd_capture_rssi(const struct shell *shell, size_t argc, char **argv) {
+
+	if (argc != 2) {
+		shell_error(shell, "Usage: capture_rssi <delay_ms>");
+		return -EINVAL;
+	}
+
+	delay_ms = atoi(argv[1]);
+	if (delay_ms < 0) {
+		shell_error(shell, "Invalid delay value");
+		return -EINVAL;
+	}
+
+	shell_print(shell, "Capturing RSSI in %d ms, please wait...", delay_ms);
+
+	k_mutex_unlock(&lcs_conn_mutex);
+	return 0;
+}
+
+
 SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
     SHELL_CMD(set_peripheral_tx, NULL, "Set peripheral TX power", cmd_set_peripheral_tx),
     SHELL_CMD(set_central_tx, NULL, "Set central TX power", cmd_set_central_tx),
     SHELL_CMD(set_phy, NULL, "Set PHY (1m, 2m, or coded)", cmd_set_phy),
+	SHELL_CMD(print_rssi_buf, NULL, "Print RSSI buffer", cmd_print_rssi_buf),
+	SHELL_CMD(capture_rssi_delay, NULL, "Capture RSSI", cmd_capture_rssi),
     SHELL_SUBCMD_SET_END
 );
 
@@ -321,6 +385,8 @@ SHELL_CMD_REGISTER(link_control, &link_control_cmds, "Link Control commands", NU
 int main(void)
 {
     int err;
+	k_mutex_init(&lcs_conn_mutex);
+	k_mutex_unlock(&lcs_conn_mutex);
 
     err = bt_enable(NULL);
     if (err < 0) {
@@ -334,6 +400,25 @@ int main(void)
 
     LOG_INF("Bluetooth initialized");
     start_scan();
+
+    err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_SCAN, 0, 20);
+    if (err) {
+        LOG_ERR("Failed to set central scan TX power (err %d)", err);
+    }
+
+	LOG_INF("Waiting for connection");
+	k_msleep(30000);
+
+	uint16_t handle;
+	bt_hci_get_conn_handle(default_conn, &handle);
+
+	LOG_INF("Connection handle: %u", handle);
+	for (int i = 0; i < 1024; i++) {
+		read_conn_rssi(handle, &rssi_buf[i].rssi);
+		rssi_buf[i].timestamp = k_uptime_get_32();
+		LOG_INF("RSSI: %d, Timestamp: %u", rssi_buf[i].rssi, rssi_buf[i].timestamp);
+		k_msleep(RSSI_LOG_RATE_MS);
+	}
 
     return 0;
 }

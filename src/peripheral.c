@@ -37,7 +37,7 @@ static const struct bt_data sd[] = {
 	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LCS_VAL),
 };
 
-int8_t tx_power = 0;
+int8_t tx_power_value = 20;
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -54,6 +54,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 	current_conn = bt_conn_ref(conn);
 	uint16_t conn_handle;
 	bt_hci_get_conn_handle(current_conn, &conn_handle);
+	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, tx_power_value);
 }
 
 static void disconnected(struct bt_conn *conn, uint8_t reason)
@@ -121,6 +122,7 @@ int main(void)
 		LOG_ERR("Advertising failed to start (err %d)", err);
 		return 0;
 	}
+	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, tx_power_value);
 }
 
 void ble_write_thread(void)

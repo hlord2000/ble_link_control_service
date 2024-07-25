@@ -124,7 +124,9 @@ int set_tx_power(uint8_t handle_type, uint16_t handle, int8_t tx_pwr_lvl) {
 		uint8_t reason = rsp ?
 			((struct bt_hci_rp_vs_write_tx_power_level *)
 			  rsp->data)->status : 0;
-		LOG_ERR("Set Tx power err: %d reason 0x%02x", err, reason);
+		LOG_ERR("Set TX power err: %d reason 0x%02x", err, reason);
+		LOG_ERR("Handle: %d, Handle type: %d, TX power level: %d",
+			handle, handle_type, tx_pwr_lvl);
 		return err;
 	}
 
