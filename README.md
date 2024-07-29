@@ -2,10 +2,15 @@ Use nRF Connect SDK Version 2.7
 To build, use the command: 
 
 ```cd <peripheral/central>```
+
 ```west build -b nrf52840dk/nrf52840```
+
 Or, to build with nRF21540 support:
+
 ```west build -b nrf52840dk/nrf52840 --shield nrf21540ek -- -DEXTRA_CONF_FILE="fem.conf"```
+
 Then:
+
 ```west flash```
 
 All logging is sent to both the UART (for configuration and benchtop testing) and a littlefs filesystem (for field testing)
