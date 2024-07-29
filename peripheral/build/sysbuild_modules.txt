@@ -1,0 +1,2 @@
+"nrf":"/opt/ncs/ncs-v2.7/nrf":"/opt/ncs/ncs-v2.7/nrf/sysbuild"
+"mcuboot":"/opt/ncs/ncs-v2.7/bootloader/mcuboot":"/opt/ncs/ncs-v2.7/bootloader/mcuboot/boot/zephyr/sysbuild"
