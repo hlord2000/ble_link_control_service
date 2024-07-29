@@ -25,5 +25,7 @@ Additional 'link_control' commands are available on the central:
 To view logs in the file system, run the following commands:
 
 ```fs cd lfs1```
+
 ```fs ls```
+
 ```fs cat log.<XXXX>```
