@@ -16,3 +16,5 @@ __pycache__/
 /doc/_build*
 
 /.cache*
+
+**/build/
