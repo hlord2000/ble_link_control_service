@@ -1,2 +1,7 @@
+config LCS_RSSI_INTERVAL_MS
+	int "RSSI measurement interval in milliseconds"
+	default 1000
+	help
+	  Defines the interval between RSSI measurements in milliseconds.
 
 source "Kconfig.zephyr"

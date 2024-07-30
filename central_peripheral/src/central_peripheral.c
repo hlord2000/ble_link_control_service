@@ -13,7 +13,6 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
-
 #include <zephyr/fs/fs.h>
 
 #include "link_control.h"
@@ -55,7 +54,6 @@ static void start_advertising(void) {
 
 struct link_control_handles {
     uint16_t tx_power_handle;
-    // Add other characteristic handles as needed
 };
 
 static bool data_cb(struct bt_data *data, void *user_data) {
@@ -142,20 +140,26 @@ static void write_func(struct bt_conn *conn, uint8_t err,
     }
 }
 
-static void write_tx_power(struct bt_conn *conn, int8_t tx_power_value)
+int write_tx_power_peripheral(int8_t tx_power_value)
 {
     int err;
+	
+	if (peripheral_conn != NULL) {
+		write_params.data = &tx_power_value;
+		write_params.length = sizeof(tx_power_value);
+		write_params.handle = tx_power_handle;
+		write_params.offset = 0;
+		write_params.func = write_func;
 
-    write_params.data = &tx_power_value;
-    write_params.length = sizeof(tx_power_value);
-    write_params.handle = tx_power_handle;
-    write_params.offset = 0;
-    write_params.func = write_func;
-
-    err = bt_gatt_write(conn, &write_params);
-    if (err) {
-        LOG_ERR("Write failed (err %d)", err);
-    }
+		err = bt_gatt_write(peripheral_conn, &write_params);
+		if (err) {
+			LOG_ERR("Write failed (err %d)", err);
+			return err;
+		}
+	} else {
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static uint8_t rssi_notify_cb(struct bt_conn *conn,
@@ -364,7 +368,7 @@ static int cmd_set_peripheral_tx(const struct shell *shell, size_t argc, char **
         shell_error(shell, "No active connection");
         return -ENOEXEC;
     }
-    write_tx_power(peripheral_conn, tx_power);
+    write_tx_power_peripheral(tx_power);
     return 0;
 }
 
@@ -468,7 +472,6 @@ static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) 
     shell_print(shell, "Directory %s cleared successfully\n", dir_path);
 	return 0;
 }
-	
 
 SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
     SHELL_CMD(set_peripheral_tx, NULL, "Set peripheral TX power", cmd_set_peripheral_tx),

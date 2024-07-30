@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/shell/shell.h>
+#include <zephyr/fs/fs.h>
+
 #include "link_control.h"
 #include "link_control_service.h"
 
@@ -133,8 +136,57 @@ void ble_write_thread(void) {
         }
 
         k_sem_give(&ble_connected);
-        k_msleep(500);
+        k_msleep(CONFIG_LCS_RSSI_INTERVAL_MS);
     }
 }
 
 K_THREAD_DEFINE(ble_write_thread_id, STACKSIZE, ble_write_thread, NULL, NULL, NULL, PRIORITY, 0, 0);
+
+static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) {
+    int res;
+    struct fs_dir_t dirp;
+    struct fs_dirent entry;
+
+	char dir_path[64] = "/lfs1";
+
+    fs_dir_t_init(&dirp);
+
+    res = fs_opendir(&dirp, dir_path);
+    if (res) {
+        shell_error(shell, "Error opening directory %s [%d]\n", dir_path, res);
+        return res;
+    }
+
+    shell_print(shell, "Clearing directory %s\n", dir_path);
+    for (;;) {
+        char file_path[PATH_MAX] = { 0 };
+
+        res = fs_readdir(&dirp, &entry);
+
+        /* entry.name[0] == 0 means end-of-dir */
+        if (res || entry.name[0] == 0) {
+            break;
+        }
+
+        /* Delete file or sub directory */
+        snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, entry.name);
+        res = fs_unlink(file_path);
+        if (res) {
+            shell_error(shell, "Error deleting file/dir [%d]\n", res);
+            fs_closedir(&dirp);
+            return res;
+        }
+    }
+
+    fs_closedir(&dirp);
+    shell_print(shell, "Directory %s cleared successfully\n", dir_path);
+	return 0;
+}
+
+
+SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
+	SHELL_CMD(remove_logs, NULL, "Removes all logs", cmd_remove_logs),
+    SHELL_SUBCMD_SET_END
+);
+
+SHELL_CMD_REGISTER(link_control, &link_control_cmds, "Link Control commands", NULL);

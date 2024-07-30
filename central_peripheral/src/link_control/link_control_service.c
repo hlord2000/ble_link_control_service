@@ -10,6 +10,7 @@ LOG_MODULE_REGISTER(bt_lcs, LOG_LEVEL_DBG);
 
 #include "link_control.h"
 #include "link_control_service.h"
+#include "central_peripheral.h"
 
 static int8_t peripheral_tx_power = 0;
 static ssize_t read_tx_power_peripheral(struct bt_conn *conn, const struct bt_gatt_attr *attr,
@@ -18,7 +19,7 @@ static ssize_t read_tx_power_peripheral(struct bt_conn *conn, const struct bt_ga
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &peripheral_tx_power, sizeof(peripheral_tx_power));
 }
 
-static ssize_t write_tx_power_peripheral(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+static ssize_t write_tx_power_per(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                               const void *buf, uint16_t len, uint16_t offset, uint8_t flags)
 {
     if (offset + len > sizeof(peripheral_tx_power)) {
@@ -26,12 +27,8 @@ static ssize_t write_tx_power_peripheral(struct bt_conn *conn, const struct bt_g
     }
 
     memcpy(&peripheral_tx_power + offset, buf, len);
-	current_tx_power = peripheral_tx_power;
 
-	uint16_t conn_handle;
-	bt_hci_get_conn_handle(conn, &conn_handle);
-	set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, peripheral_tx_power);
-
+	write_tx_power_peripheral(peripheral_tx_power);
 	LOG_INF("Set tx power to %d", peripheral_tx_power);
 
     return len;
@@ -102,7 +99,7 @@ BT_GATT_SERVICE_DEFINE(lcs_svc,
     BT_GATT_CHARACTERISTIC(BT_UUID_LCS_TX_PWR_PERIPHERAL,
                            BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
                            BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-                           read_tx_power_peripheral, write_tx_power_peripheral, &peripheral_tx_power),
+                           read_tx_power_peripheral, write_tx_power_per, &peripheral_tx_power),
 	BT_GATT_CHARACTERISTIC(BT_UUID_LCS_RSSI_PERIPHERAL,
 						   BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
 						   BT_GATT_PERM_READ,
