@@ -6,6 +6,8 @@
 #include <zephyr/bluetooth/hci_vs.h>
 #include <sdc_hci_vs.h>
 
+#include "link_control.h"
+
 LOG_MODULE_REGISTER(link_control, LOG_LEVEL_DBG);
 
 int change_connection_interval(struct bt_conn *conn, uint16_t interval_us) {

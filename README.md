@@ -5,9 +5,19 @@ To build, use the command:
 
 ```west build -b nrf52840dk/nrf52840```
 
-Or, to build with nRF21540 support:
+To build with nRF21540 support:
 
 ```west build -b nrf52840dk/nrf52840 --shield nrf21540ek -- -DEXTRA_CONF_FILE="fem.conf"```
+OR
+```west build -b nrf21540dk/nrf52840 -- -DEXTRA_CONF_FILE="fem.conf"```
+
+To build with PHY control commands enabled:
+
+```west build -b nrf52840dk/nrf52840 -- -DEXTRA_CONF_FILE="phy_update.conf"```
+OR
+```west build -b nrf52840dk/nrf52840 --shield nrf21540ek -- -DEXTRA_CONF_FILE="fem.conf;phy_update.conf"```
+OR
+```west build -b nrf21540dk/nrf52840 -- -DEXTRA_CONF_FILE="fem.conf;phy_update.conf"```
 
 Then:
 
