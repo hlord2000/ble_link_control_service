@@ -19,6 +19,10 @@
 			block-cycles = <512>;
 		};
 	};
+	
+	chosen {
+		zephyr,console = &uart1;
+	};
 };
 
 &mx25r64 {
@@ -32,4 +36,12 @@
 			reg = <0x00000000 0x100000>;
 		};
 	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "disabled";
 };
