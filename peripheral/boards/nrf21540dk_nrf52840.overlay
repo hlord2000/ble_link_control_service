@@ -1,1 +1,66 @@
+/ {
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/lfs1";
+			partition = <&lfs1_part>;
+			automount;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+	
+	chosen {
+		zephyr,console = &uart1;
+	};
+};
+
+/delete-node/ &slot0_partition;
+/delete-node/ &slot1_partition;
+/delete-node/ &storage_partition;
+
+&flash0 {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot_partition: partition@0 {
+			label = "mcuboot";
+			reg = <0x00000000 0x0000C000>;
+		};
+		slot0_partition: partition@c000 {
+			label = "image-0";
+			reg = <0x0000C000 0x00071000>;
+		};
+		slot1_partition: partition@7D000 {
+			label = "image-1";
+			reg = <0x0007D000 0x00071000>;
+		};
+
+		lfs1_part: partition@EE000 {
+			label = "logging";
+			reg = <0x000EE000 0x0000A000>;
+		};
+
+		storage_partition: partition@f8000 {
+			label = "storage";
+			reg = <0x000f8000 0x00008000>;
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "disabled";
+};
+
 arduino_spi: &spi3 {};
+
