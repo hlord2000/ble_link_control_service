@@ -39,7 +39,7 @@ west build -b nrf21540dk/nrf52840 -- -DEXTRA_CONF_FILE="fem.conf;phy_update.conf
 
 To build with file system logging enabled:
 ```
-west build -b nrf52840dk/nrf52840 -p -- -DEXTRA_CONF_FILE="phy_update.conf;fs_log.conf"
+west build -b nrf52840dk/nrf52840 -p -- -DEXTRA_CONF_FILE="phy_update.conf;flash_logging.conf"
 ```
 
 To use external flash, please refer to the spi2 node's pinctrl definitions. 
