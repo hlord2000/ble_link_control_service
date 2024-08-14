@@ -1,0 +1,5 @@
+&spi2 {
+	compatible = "nordic,nrf-spim";
+	anomaly-58-workaround;
+	cs-gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+};

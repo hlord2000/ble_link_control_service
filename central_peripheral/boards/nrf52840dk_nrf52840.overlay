@@ -15,13 +15,9 @@
 			read-size = <16>;
 			prog-size = <16>;
 			cache-size = <64>;
-			lookahead-size = <32>;
+			lookahead-size = <64>;
 			block-cycles = <512>;
 		};
-	};
-	
-	chosen {
-		zephyr,console = &uart1;
 	};
 };
 
@@ -36,12 +32,4 @@
 			reg = <0x00000000 0x100000>;
 		};
 	};
-};
-
-&uart1 {
-	status = "okay";
-};
-
-&spi1 {
-	status = "disabled";
 };
