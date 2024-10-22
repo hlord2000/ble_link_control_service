@@ -1,7 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/byteorder.h>
-#include <zephyr/logging/log.h>
-#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/logging/log.h> 
+#include <zephyr/bluetooth/bluetooth.h> 
 #include <zephyr/bluetooth/hci.h>
 #include <zephyr/bluetooth/hci_vs.h>
 #include <sdc_hci_vs.h>
@@ -48,15 +48,21 @@ int update_phy(struct bt_conn *conn, uint8_t phy) {
     int err;
 	struct bt_conn_le_phy_param preferred_phy;
 
-	if (phy == BT_GAP_LE_PHY_CODED) {
-		preferred_phy.options = BT_CONN_LE_PHY_OPT_CODED_S8;
-		preferred_phy.pref_tx_phy = BT_GAP_LE_PHY_CODED;
-		preferred_phy.pref_rx_phy = BT_GAP_LE_PHY_CODED;
-	}
-	else {
-		preferred_phy.options = BT_CONN_LE_PHY_OPT_NONE;
-		preferred_phy.pref_tx_phy = phy;
-		preferred_phy.pref_rx_phy = phy;
+	switch(phy) {
+		case BT_GAP_LE_PHY_1M:
+		case BT_GAP_LE_PHY_2M:
+			preferred_phy.options = BT_CONN_LE_PHY_OPT_NONE;
+			preferred_phy.pref_tx_phy = phy;
+			preferred_phy.pref_rx_phy = phy;
+			break;
+		case BT_GAP_LE_PHY_CODED:
+			preferred_phy.options = BT_CONN_LE_PHY_OPT_CODED_S8;
+			preferred_phy.pref_tx_phy = BT_GAP_LE_PHY_CODED;
+			preferred_phy.pref_rx_phy = BT_GAP_LE_PHY_CODED;
+			break;
+		default:
+			LOG_ERR("Invalid PHY value");
+			return -EINVAL;
 	}
 
     err = bt_conn_le_phy_update(conn, &preferred_phy);

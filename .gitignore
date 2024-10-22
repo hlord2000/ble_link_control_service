@@ -4,7 +4,8 @@
 *~
 
 # python
-.venv
+.venv/
+venv/
 
 # build
 /build*

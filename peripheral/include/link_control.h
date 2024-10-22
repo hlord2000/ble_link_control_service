@@ -5,6 +5,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 
 extern int8_t current_tx_power;
+extern struct bt_conn *current_conn;
 
 // Set the TX power level for a connection
 int set_tx_power(uint8_t handle_type, uint16_t handle, int8_t tx_pwr_lvl);

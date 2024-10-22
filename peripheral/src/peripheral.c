@@ -12,7 +12,9 @@
 #include <string.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
+#if defined(CONFIG_FILE_SYSTEM)
 #include <zephyr/fs/fs.h>
+#endif
 
 #include "link_control.h"
 #include "link_control_service.h"
@@ -27,7 +29,7 @@ LOG_MODULE_REGISTER(link_control_peripheral);
 int8_t current_tx_power;
 static K_SEM_DEFINE(ble_init_ok, 0, 1);
 static K_SEM_DEFINE(ble_connected, 0, 1);
-static struct bt_conn *current_conn;
+struct bt_conn *current_conn;
 
 static const struct bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -45,6 +47,17 @@ static void start_advertising(void) {
         return;
     }
     set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, current_tx_power);
+}
+
+static struct bt_gatt_exchange_params exchange_params;
+
+static void exchange_func(struct bt_conn *conn, uint8_t err,
+    struct bt_gatt_exchange_params *params)
+{
+    if (!err) {
+        uint32_t bt_max_send_len = bt_gatt_get_mtu(conn) - 3;
+        LOG_INF("max send len is %d", bt_max_send_len);
+    }
 }
 
 static void connected(struct bt_conn *conn, uint8_t err) {
@@ -67,6 +80,12 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     uint16_t conn_handle;
     bt_hci_get_conn_handle(current_conn, &conn_handle);
     set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, current_tx_power);
+
+	exchange_params.func = exchange_func;
+	err = bt_gatt_exchange_mtu(current_conn, &exchange_params);
+	if (err) {
+		LOG_ERR("MTU exchange failed (err %d)", err);
+	}
     
     k_sem_give(&ble_connected);
 }
@@ -142,6 +161,7 @@ void ble_write_thread(void) {
 
 K_THREAD_DEFINE(ble_write_thread_id, STACKSIZE, ble_write_thread, NULL, NULL, NULL, PRIORITY, 0, 0);
 
+#if defined(CONFIG_FILE_SYSTEM)
 static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) {
     int res;
     struct fs_dir_t dirp;
@@ -190,3 +210,4 @@ SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
 );
 
 SHELL_CMD_REGISTER(link_control, &link_control_cmds, "Link Control commands", NULL);
+#endif
