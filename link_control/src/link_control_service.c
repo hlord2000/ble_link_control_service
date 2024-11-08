@@ -62,6 +62,8 @@ void update_peripheral_rssi(struct bt_conn *conn, int16_t new_rssi) {
 	}
 }
 
+int8_t peripheral_rssi_value;
+
 #if defined(CONFIG_BT_CENTRAL)
 static int8_t central_rssi_value = 0;
 static ssize_t read_rssi_central(struct bt_conn *conn, const struct bt_gatt_attr *attr,
@@ -95,6 +97,7 @@ BT_GATT_SERVICE_DEFINE(lcs_svc,
 						   BT_GATT_PERM_READ,
 						   read_rssi, NULL, &rssi_value),
 	BT_GATT_CCC(rssi_ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+#if 0
 #if defined(CONFIG_BT_CENTRAL)
     BT_GATT_CHARACTERISTIC(BT_UUID_LCS_TX_PWR_CENTRAL,
                            BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
@@ -105,5 +108,6 @@ BT_GATT_SERVICE_DEFINE(lcs_svc,
 						   BT_GATT_PERM_READ,
 						   read_rssi_central, NULL, &central_rssi_value),
 	BT_GATT_CCC(rssi_central_ccc_cfg_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+#endif
 #endif
 );

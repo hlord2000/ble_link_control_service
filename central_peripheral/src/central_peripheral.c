@@ -1,4 +1,3 @@
-
 #include <zephyr/types.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -27,8 +26,6 @@ struct bt_conn *peripheral_conn;
 static uint16_t tx_power_handle;
 static uint16_t rssi_handle;
 static struct bt_gatt_subscribe_params subscribe_params;
-
-int8_t current_tx_power = 0;
 
 #define NAME_LEN 256
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
@@ -85,11 +82,14 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
         return;
     }
 
+	/*
     if (type != BT_GAP_ADV_TYPE_ADV_IND &&
         type != BT_GAP_ADV_TYPE_ADV_DIRECT_IND &&
-        type != BT_GAP_ADV_TYPE_SCAN_RSP) {
+        type != BT_GAP_ADV_TYPE_SCAN_RSP &&
+		type != BT_GAP_ADV_TYPE_EXT_ADV) {
         return;
     }
+	*/
 
     bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
     bt_data_parse(ad, data_cb, &service_uuid);
@@ -105,7 +105,13 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
             return;
         }
 
-        err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
+		struct bt_conn_le_create_param *conn_params = BT_CONN_LE_CREATE_PARAM(
+			BT_CONN_LE_OPT_CODED | BT_CONN_LE_OPT_NO_1M,
+			BT_GAP_SCAN_FAST_INTERVAL,
+			BT_GAP_SCAN_FAST_INTERVAL);
+
+
+        err = bt_conn_le_create(addr, conn_params,
                     BT_LE_CONN_PARAM_DEFAULT, &peripheral_conn);
         if (err < 0) {
             LOG_ERR("Create conn to %s failed (%d)", addr_str, err);
@@ -119,12 +125,12 @@ static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
 static void start_scan(void)
 {
     int err;
-    err = bt_le_scan_start(BT_LE_SCAN_ACTIVE, device_found);
+
+    err = bt_le_scan_start(BT_LE_SCAN_CODED_ACTIVE, device_found);
     if (err < 0) {
         LOG_ERR("Scanning failed to start (err %d)", err);
         return;
     }
-    LOG_INF("Scanning successfully started");
 }
 
 static struct bt_gatt_discover_params discover_params;
@@ -270,7 +276,7 @@ void get_central_rssi_work_handler(struct k_work *item) {
 	err = read_conn_rssi(conn_handle, &rssi);
 	LOG_INF("Central RSSI: %d", rssi);
 
-	update_central_rssi(central_conn, rssi);
+	//update_central_rssi(central_conn, rssi);
 }
 
 K_WORK_DEFINE(central_rssi_work, get_central_rssi_work_handler);
@@ -432,6 +438,7 @@ static int cmd_set_phy(const struct shell *shell, size_t argc, char **argv)
 }
 #endif
 
+#if 0
 static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) {
     int res;
     struct fs_dir_t dirp;
@@ -484,6 +491,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
 );
 
 SHELL_CMD_REGISTER(link_control, &link_control_cmds, "Link Control commands", NULL);
+#endif
 
 int main(void)
 {
