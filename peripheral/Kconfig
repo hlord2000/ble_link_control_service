@@ -4,4 +4,12 @@ config LCS_RSSI_INTERVAL_MS
 	help
 	  Defines the interval between RSSI measurements in milliseconds.
 
+config LCS_PERIPHERAL_STACK_SIZE
+	int "Stack size for LCS Peripheral thread"
+	default 1024
+
+config LCS_PERIPHERAL_THREAD_PRIORITY
+	int "Priority for LCS Peripheral thread"
+	default 7
+
 source "Kconfig.zephyr"

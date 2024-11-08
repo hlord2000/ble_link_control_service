@@ -13,6 +13,7 @@ LOG_MODULE_REGISTER(bt_lcs, LOG_LEVEL_DBG);
 
 static int8_t tx_power_value = 0;
 static int8_t rssi_value = 0;
+int8_t current_tx_power = 0;
 
 static ssize_t read_tx_power(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                              void *buf, uint16_t len, uint16_t offset)
