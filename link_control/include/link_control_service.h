@@ -1,7 +1,8 @@
 #ifndef LINK_CONTROL_SERVICE_H__
 #define LINK_CONTROL_SERVICE_H__
 
-#include <zephyr/types.h>
+#include <stdint.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
@@ -24,5 +25,8 @@
 
 void update_peripheral_rssi(struct bt_conn *conn, int16_t new_rssi);
 void update_central_rssi(struct bt_conn *conn, int16_t new_rssi);
+
+extern atomic_t peripheral_rssi_notif_enabled;
+extern atomic_t central_rssi_notif_enabled;
 
 #endif

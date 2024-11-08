@@ -18,4 +18,10 @@ int change_connection_interval(struct bt_conn *conn, uint16_t interval_us);
 // Update the connection PHY
 int update_phy(struct bt_conn *conn, uint8_t phy);
 
+// Update peripheral RSSI
+void update_peripheral_rssi(struct bt_conn *conn, int16_t new_rssi);
+
+// Update central RSSI
+void update_central_rssi(struct bt_conn *conn, int16_t new_rssi);
+
 #endif
