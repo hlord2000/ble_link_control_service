@@ -46,7 +46,7 @@ static void start_advertising(void) {
         LOG_ERR("Advertising failed to start (err %d)", err);
         return;
     }
-    set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, current_tx_power);
+    //set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, current_tx_power);
 }
 
 struct link_control_handles {
@@ -209,7 +209,7 @@ static uint8_t discover_func(struct bt_conn *conn,
 
     if (bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS) == 0) {
         // Service discovered, now discover characteristics
-		memcpy(&discover_uuid, BT_UUID_LCS_TX_PWR_PERIPHERAL, sizeof(discover_uuid));
+		memcpy(&discover_uuid, BT_UUID_LCS_DOWN_LOCAL_RSSI, sizeof(discover_uuid));
 		discover_params.uuid = &discover_uuid.uuid;
         discover_params.start_handle = attr->handle + 1;
         discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
@@ -218,7 +218,7 @@ static uint8_t discover_func(struct bt_conn *conn,
         if (err) {
             LOG_ERR("Discover failed (err %d)", err);
         }
-    } else if (bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS_TX_PWR_PERIPHERAL) == 0) {
+    } /*else if (bt_uuid_cmp(discover_params.uuid, BT_UUID_LCS_TX_PWR_PERIPHERAL) == 0) {
         // TX Power characteristic found
         tx_power_handle = bt_gatt_attr_value_handle(attr);
         LOG_INF("TX Power characteristic handle: %u", tx_power_handle);
@@ -248,7 +248,7 @@ static uint8_t discover_func(struct bt_conn *conn,
 		if (err) {
 			LOG_ERR("Discover failed (err %d)", err);
 		}
-	} else {
+	} */ else {
 		subscribe_params.notify = rssi_notify_cb;
 		subscribe_params.value = BT_GATT_CCC_NOTIFY;
 		subscribe_params.ccc_handle = attr->handle;
@@ -386,6 +386,7 @@ static int cmd_set_central_tx(const struct shell *shell, size_t argc, char **arg
         shell_error(shell, "Usage: set_central_tx <power_level>");
         return -EINVAL;
     }
+	/*
     current_tx_power = (int8_t)atoi(argv[1]);
     if (!peripheral_conn) {
         shell_error(shell, "No active connection");
@@ -396,12 +397,14 @@ static int cmd_set_central_tx(const struct shell *shell, size_t argc, char **arg
         shell_error(shell, "Failed to get connection handle (err %d)", err);
         return err;
     }
+	
     err = set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_CONN, conn_handle, current_tx_power);
     if (err) {
         shell_error(shell, "Failed to set central TX power (err %d)", err);
         return err;
     }
     shell_print(shell, "Central TX power set to %d", current_tx_power);
+	*/
     return 0;
 }
 
