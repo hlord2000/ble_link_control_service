@@ -6,7 +6,7 @@
 #include <zephyr/bluetooth/hci_vs.h>
 #include <sdc_hci_vs.h>
 
-#include "link_control.h"
+#include "link_control/link_control.h"
 
 LOG_MODULE_REGISTER(link_control, LOG_LEVEL_DBG);
 

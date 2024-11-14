@@ -1,0 +1,48 @@
+#ifndef LINK_CONTROL_SERVICE_H__
+#define LINK_CONTROL_SERVICE_H__
+
+#include <stdint.h>
+#include <zephyr/bluetooth/uuid.h>
+#include <zephyr/bluetooth/gatt.h>
+
+// service uuid shared across all devices
+#define BT_UUID_LCS_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD0, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+
+// downstream connection (present on both central and peripheral)
+#define BT_UUID_LCS_DOWN_LOCAL_RSSI_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD1, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+#define BT_UUID_LCS_DOWN_XCVR_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD4, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+
+#if defined(CONFIG_BT_CENTRAL)
+// central-only characteristics 
+#define BT_UUID_LCS_DOWN_REMOTE_RSSI_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD2, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+
+// upstream connection
+#define BT_UUID_LCS_UP_LOCAL_RSSI_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD6, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+#define BT_UUID_LCS_UP_XCVR_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD8, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+
+// peripheral data reflection
+#define BT_UUID_LCS_PERIPHERAL_DATA_VAL \
+   BT_UUID_128_ENCODE(0x430EBAD9, 0x5C25, 0x469E, 0xA162, 0xA1C9DC50A8FD)
+#endif
+
+// declares
+#define BT_UUID_LCS                     BT_UUID_DECLARE_128(BT_UUID_LCS_VAL)
+#define BT_UUID_LCS_DOWN_LOCAL_RSSI     BT_UUID_DECLARE_128(BT_UUID_LCS_DOWN_LOCAL_RSSI_VAL)
+#define BT_UUID_LCS_DOWN_XCVR           BT_UUID_DECLARE_128(BT_UUID_LCS_DOWN_XCVR_VAL)
+
+#if defined(CONFIG_BT_CENTRAL)
+#define BT_UUID_LCS_DOWN_REMOTE_RSSI    BT_UUID_DECLARE_128(BT_UUID_LCS_DOWN_REMOTE_RSSI_VAL)
+#define BT_UUID_LCS_UP_LOCAL_RSSI       BT_UUID_DECLARE_128(BT_UUID_LCS_UP_LOCAL_RSSI_VAL)
+#define BT_UUID_LCS_UP_XCVR             BT_UUID_DECLARE_128(BT_UUID_LCS_UP_XCVR_VAL)
+#define BT_UUID_LCS_PERIPHERAL_DATA     BT_UUID_DECLARE_128(BT_UUID_LCS_PERIPHERAL_DATA_VAL)
+#endif
+
+extern const struct bt_gatt_service_static lcs_svc;
+
+#endif

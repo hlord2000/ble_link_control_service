@@ -14,8 +14,8 @@
 #include <zephyr/shell/shell.h>
 #include <zephyr/fs/fs.h>
 
-#include "link_control.h"
-#include "link_control_service.h"
+#include "link_control/link_control.h"
+#include "link_control/link_control_service.h"
 
 LOG_MODULE_REGISTER(link_control_central);
 
