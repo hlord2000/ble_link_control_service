@@ -124,7 +124,9 @@ void throughput_test(void) {
                 k_mutex_unlock(&notify_mutex);
                 notification_in_progress = false;
             }
-        }
+        } else {
+			k_msleep(100);
+		}
     }
 }
 

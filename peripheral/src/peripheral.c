@@ -40,12 +40,43 @@ static const struct bt_data sd[] = {
     BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_LCS_VAL),
 };
 
+static struct bt_le_ext_adv *adv;
+
 static void start_advertising(void) {
-    int err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err) {
-        LOG_ERR("Advertising failed to start (err %d)", err);
-        return;
-    }
+	int err;
+	struct bt_le_adv_param adv_param = {
+		.id = BT_ID_DEFAULT,
+		.sid = 0U,
+		.secondary_max_skip = 0U,
+		.options = (BT_LE_ADV_OPT_EXT_ADV |
+			    BT_LE_ADV_OPT_CONNECTABLE |
+			    BT_LE_ADV_OPT_CODED),
+		.interval_min = BT_GAP_ADV_FAST_INT_MIN_2,
+		.interval_max = BT_GAP_ADV_FAST_INT_MAX_2,
+		.peer = NULL,
+	};
+
+	LOG_INF("Creating a Coded PHY connectable non-scannable advertising set");
+	err = bt_le_ext_adv_create(&adv_param, NULL, &adv);
+	if (err) {
+		LOG_ERR("Failed to create Coded PHY extended advertising set (err %d)", err);
+		return;
+	}
+
+	LOG_INF("Setting extended advertising data");
+	err = bt_le_ext_adv_set_data(adv, ad, ARRAY_SIZE(ad), NULL, 0);
+	if (err) {
+		LOG_ERR("Failed to set extended advertising data (err %d)", err);
+		return;
+	}
+
+	LOG_INF("Starting Extended Advertising (connectable non-scannable)");
+	err = bt_le_ext_adv_start(adv, BT_LE_EXT_ADV_START_DEFAULT);
+	if (err) {
+		LOG_ERR("Failed to start extended advertising set (err %d)", err);
+		return;
+	}
+
     set_tx_power(BT_HCI_VS_LL_HANDLE_TYPE_ADV, 0, current_tx_power);
 }
 
@@ -71,7 +102,7 @@ static void connected(struct bt_conn *conn, uint8_t err) {
     bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
     LOG_INF("Connected %s", addr);
 
-    err = bt_le_adv_stop();
+    err = bt_le_ext_adv_stop(adv);
     if (err) {
         LOG_ERR("Failed to stop advertising, err: %d", err);
     }

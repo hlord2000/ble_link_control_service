@@ -58,17 +58,16 @@ struct link_control_handles {
 
 static bool data_cb(struct bt_data *data, void *user_data) {
     int err;
-    struct bt_uuid *uuid = user_data;
+	char *name = user_data;
+	uint8_t len;
+
     switch (data->type) {
-    case BT_DATA_UUID128_SOME:
-    case BT_DATA_UUID128_ALL:
-        err = bt_uuid_create(uuid, data->data, data->data_len);
-        if (err < 0) {
-            uuid = NULL;
-            LOG_ERR("Unable to parse UUID from advertisement data");
-            return false;
-        }
-        return true;
+	case BT_DATA_NAME_SHORTENED:
+	case BT_DATA_NAME_COMPLETE:
+		len = MIN(data->data_len, NAME_LEN - 1);
+		memcpy(name, data->data, len);
+		name[len] = '\0';
+		return false;
     default:
         return true;
     }
@@ -77,49 +76,59 @@ static bool data_cb(struct bt_data *data, void *user_data) {
 static void device_found(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
              struct net_buf_simple *ad)
 {
-    char addr_str[BT_ADDR_LE_STR_LEN];
-    struct bt_uuid service_uuid;
     int err;
+    char addr_str[BT_ADDR_LE_STR_LEN];
+	char name[30];
+
+	(void)memset(name, 0, sizeof(name));
 
     if (peripheral_conn) {
         return;
     }
 
-    if (type != BT_GAP_ADV_TYPE_ADV_IND &&
-        type != BT_GAP_ADV_TYPE_ADV_DIRECT_IND &&
-        type != BT_GAP_ADV_TYPE_SCAN_RSP) {
-        return;
-    }
+	if (type == BT_GAP_ADV_TYPE_ADV_IND ||
+	    type == BT_GAP_ADV_TYPE_ADV_DIRECT_IND ||
+	    type == BT_GAP_ADV_TYPE_EXT_ADV) {
 
-    bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
-    bt_data_parse(ad, data_cb, &service_uuid);
+		bt_addr_le_to_str(addr, addr_str, sizeof(addr_str));
+		bt_data_parse(ad, data_cb, name);
 
-    if (!bt_uuid_cmp(&service_uuid, BT_UUID_LCS)) {
-        char uuid_str[NAME_LEN];
-        bt_uuid_to_str(&service_uuid, uuid_str, sizeof(uuid_str));
-        LOG_INF("Found service: %s", uuid_str);
+		if (strcmp(name, "LCS Peripheral") == 0) {
+			struct bt_conn_le_create_param *create_param;
 
-        err = bt_le_scan_stop();
-        if (err) {
-            LOG_ERR("Stop LE scan failed (err %d)", err);
-            return;
-        }
+			create_param = BT_CONN_LE_CREATE_CONN;
+			create_param->options |= BT_CONN_LE_OPT_CODED;
 
-        err = bt_conn_le_create(addr, BT_CONN_LE_CREATE_CONN,
-                    BT_LE_CONN_PARAM_DEFAULT, &peripheral_conn);
-        if (err < 0) {
-            LOG_ERR("Create conn to %s failed (%d)", addr_str, err);
-            start_scan();
-        } else {
-            LOG_INF("Connection initiated to %s", addr_str);
-        }
-    }
+			err = bt_le_scan_stop();
+			if (err) {
+				LOG_ERR("Stop LE scan failed (err %d)", err);
+				return;
+			}
+
+			err = bt_conn_le_create(addr, create_param,
+						BT_LE_CONN_PARAM_DEFAULT, &peripheral_conn);
+			if (err < 0) {
+				LOG_ERR("Create conn to %s failed (%d)", addr_str, err);
+				start_scan();
+			} else {
+				LOG_INF("Connection initiated to %s", addr_str);
+			}
+		}
+	}
 }
 
 static void start_scan(void)
 {
     int err;
-    err = bt_le_scan_start(BT_LE_SCAN_ACTIVE, device_found);
+
+	struct bt_le_scan_param scan_param = {
+		.type       = BT_LE_SCAN_TYPE_ACTIVE,
+		.options    = BT_LE_SCAN_OPT_CODED,
+		.interval   = BT_GAP_SCAN_FAST_INTERVAL,
+		.window     = BT_GAP_SCAN_FAST_WINDOW,
+	};
+
+    err = bt_le_scan_start(&scan_param, device_found);
     if (err < 0) {
         LOG_ERR("Scanning failed to start (err %d)", err);
         return;
@@ -307,7 +316,7 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 		err = bt_gatt_discover(conn, &discover_params);
 		if (err) {
-			LOG_ERR("Discover failed(err %d)", err);
+			LOG_ERR("Discover failed (err %d)", err);
 		}
     } else {
 		if (central_conn == NULL) {
@@ -432,6 +441,7 @@ static int cmd_set_phy(const struct shell *shell, size_t argc, char **argv)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_LOG_BACKEND_FS)
 static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) {
     int res;
     struct fs_dir_t dirp;
@@ -472,6 +482,7 @@ static int cmd_remove_logs(const struct shell *shell, size_t argc, char **argv) 
     shell_print(shell, "Directory %s cleared successfully\n", dir_path);
 	return 0;
 }
+#endif
 
 SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
     SHELL_CMD(set_peripheral_tx, NULL, "Set peripheral TX power", cmd_set_peripheral_tx),
@@ -479,7 +490,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(link_control_cmds,
 #if IS_ENABLED(CONFIG_BT_USER_PHY_UPDATE)
     SHELL_CMD(set_phy, NULL, "Set PHY (1m, 2m, or coded)", cmd_set_phy),
 #endif
+#if IS_ENABLED(CONFIG_LOG_BACKEND_FS)
 	SHELL_CMD(remove_logs, NULL, "Removes all logs", cmd_remove_logs),
+#endif
     SHELL_SUBCMD_SET_END
 );
 
